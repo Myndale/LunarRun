@@ -126,6 +126,8 @@ void randomize_landscape() {
 }
 
 void draw_landscape() {
+  if (ship_pos.y < 0)
+    return;
   int column = (int)(ship_pos.x / 84);
   int row  = (int)(ship_pos.y / 48);
   const byte * landscape = (const byte *)pgm_read_word(&landscapes[row][column]);

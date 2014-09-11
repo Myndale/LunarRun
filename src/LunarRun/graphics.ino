@@ -32,55 +32,16 @@ const byte logo[] PROGMEM = {
     B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,B00000000,
 };
 
-const byte ship[] PROGMEM =
-{
-  8, 8,
-  B00111100,
-  B01000010,
-  B01000010,
-  B00111100,
-  B00100100,
-  B00111100,
-  B01011010,
-  B11000011
-};
-
-const byte down_flame[] PROGMEM =
-{
-  8, 8,
-  B00111100,
-  B01111110,
-  B01111110,
-  B01111110,
-  B00111100,
-  B00111100,
-  B00011000,
-  B00000000
-};
-
-const byte left_flame[] PROGMEM =
-{
-  8, 8,
-  B00000000,
-  B00000000,
-  B00001110,
-  B00011111,
-  B00001110,
-  B00000000,
-  B00000000,
-  B00000000
-};
-
-const byte right_flame[] PROGMEM =
-{
-  8, 8,
-  B00000000,
-  B00000000,
-  B01110000,
-  B11111100,
-  B01110000,
-  B00000000,
-  B00000000,
-  B00000000
-};
+void drawBitmap(int8_t dst_x, int8_t dst_y, int8_t dst_w, int8_t dst_h, int8_t src_x, int8_t src_y, const uint8_t *bitmap) {
+  int8_t src_w = pgm_read_byte(bitmap);
+  //int8_t src_h = pgm_read_byte(bitmap + 1);
+  bitmap += 2;
+  int8_t byteWidth = (src_w + 7) / 8;
+  for (int8_t dy = 0, j = src_y; dy < dst_h; dy++, j++)
+    for (int8_t dx = 0, i = src_x; dx < dst_w; dx++, i++)
+    {
+      if (pgm_read_byte(bitmap + (j * byteWidth + i / 8)) & (B10000000 >> (i % 8)))
+        gb.display.drawPixel(dst_x + dx, dst_y + dy);
+    }
+}
 

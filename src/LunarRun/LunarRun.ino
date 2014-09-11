@@ -44,7 +44,7 @@ void loop(){
   if(gb.update()){
        boolean render_down_flame = false, render_left_flame = false, render_right_flame = false;       
        grayscale_frame = !grayscale_frame;
-    
+       
       if (gb.buttons.pressed(BTN_C))
       {
         title_screen();
@@ -54,8 +54,8 @@ void loop(){
       update_ship(render_down_flame, render_left_flame, render_right_flame);
     
       draw_landscape();
-      draw_ship(render_down_flame, render_left_flame, render_right_flame);
-      draw_fuel();
+      draw_ship(render_down_flame, render_left_flame, render_right_flame, grayscale_frame);
+      //draw_fuel();
   }
 }
 
