@@ -109,20 +109,6 @@ const byte * landscapes[NUM_ROWS][NUM_COLUMNS] PROGMEM = {
 
 
 void randomize_landscape() {
-  pads[0].pos = 20;
-  pads[0].width = 5;
-  pads[0].height = 35;
-  pads[0].multiplier = 4;
-  
-  pads[1].pos = 30;
-  pads[1].width = 8;
-  pads[1].height = 32;
-  pads[1].multiplier = 2;
-  
-  pads[2].pos = 60;
-  pads[2].width = 10;
-  pads[2].height = 40;
-  pads[2].multiplier = 1;
 }
 
 void draw_landscape() {

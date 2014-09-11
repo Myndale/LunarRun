@@ -9,27 +9,15 @@ extern const byte down_flame[] PROGMEM;
 extern const byte left_flame[] PROGMEM;
 extern const byte right_flame[] PROGMEM;
 
-#define NUM_PADS 3
+#define GRAVITY 0.005f
+#define THRUST 0.015f
+#define ROTATION_SPEED 0.03f
 
-struct pad
-{
-  int pos;
-  int width;
-  int height;
-  int multiplier;
-};
-
-vector2 ship_pos(10, 10);
-vector2 ship_vel(0.5f, 0);
-const vector2 gravity(0, 0.005f);
-const vector2 down_thrust(0, -0.025f);
-const vector2 sideways_thrust(0.01f, 0);
-const float down_rate = 1.0f;
-const float sideways_rate = 1.0f;
+vector2 ship_pos;
+vector2 ship_vel;
+double ship_angle = 0;
 float fuel = 200;
 boolean grayscale_frame = false;
-
-pad pads[NUM_PADS];
 
 
 void setup(){
@@ -45,6 +33,8 @@ void loop(){
        boolean render_down_flame = false, render_left_flame = false, render_right_flame = false;       
        grayscale_frame = !grayscale_frame;
        
+      if (gb.buttons.pressed(BTN_B))
+        init_game();
       if (gb.buttons.pressed(BTN_C))
       {
         title_screen();
@@ -61,5 +51,13 @@ void loop(){
 
 void title_screen() {
   gb.titleScreen(F("Lunar Run"), logo);
+  init_game();
 }
+
+void init_game() {
+  ship_pos = vector2(10, 10);
+  ship_vel = vector2(0, 0);
+  ship_angle = 0.0f;
+}
+
 

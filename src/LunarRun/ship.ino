@@ -60,13 +60,37 @@ const byte image2[] PROGMEM = {
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
 
+struct ship_sprite_data
+{
+  char capsule_x, capsule_y, flame_x, flame_y, flame_w, flame_h;
+};
 
+#define NUM_ANGLES 16
 
-
-
+// first array is without flame, second is with
+ship_sprite_data angles[] PROGMEM =
+{
+  {27,45,   25,44, 5,11},
+  {18,45,   14,44, 6,11},
+  { 9,45,    2,44, 9, 9},
+  { 9,36,    0,35,11, 6},
+  { 9,27,    0,25,11, 5},
+  { 9,18,    0,14,11, 6},
+  { 9, 9,    2, 2, 9, 9},  
+  {18, 9,   14, 0, 6,11},
+  {27, 9,   25,  0,5,11},
+  {36, 9,    35,0, 6,11},
+  {45, 9,   44, 2, 9, 9},
+  {45,18,   44,14,11, 6},
+  {45,27,   44,25,11, 5},
+  {45,36,   44,35,11, 6},  
+  {45,45,   44,44, 9, 9},
+  {36,45,   35,44, 6,11},
+};
 
 void update_ship(boolean & render_down_flame, boolean & render_left_flame, boolean & render_right_flame)
 {
+  /*
   // apply thrusters
   if ((fuel > 0) && (gb.buttons.repeat(BTN_DOWN, 1) || gb.buttons.repeat(BTN_A, 1)))
     ship_vel += down_thrust, fuel -= down_rate, render_down_flame = true;
@@ -74,11 +98,35 @@ void update_ship(boolean & render_down_flame, boolean & render_left_flame, boole
     ship_vel -= sideways_thrust, fuel -= sideways_rate, render_right_flame = true;
   if ((fuel > 0) && gb.buttons.repeat(BTN_RIGHT, 1))
     ship_vel += sideways_thrust, fuel -= sideways_rate, render_left_flame = true;
-  if (fuel < 0)
+    */
+    
+  // downward thruster
+  if ((fuel > 0) && (gb.buttons.repeat(BTN_DOWN, 1) || gb.buttons.repeat(BTN_A, 1)))
+  {
+    ship_vel.x += THRUST * sin(ship_angle);
+    ship_vel.y -= THRUST * cos(ship_angle);
+    render_down_flame = true;
+  }
+      
+   // rotation
+   if (gb.buttons.repeat(BTN_LEFT, 1))
+   {
+     ship_angle -= ROTATION_SPEED;
+     while (ship_angle < 0)
+       ship_angle += 2*PI;
+   }
+   if (gb.buttons.repeat(BTN_RIGHT, 1))
+   {
+     ship_angle += ROTATION_SPEED;
+     while (ship_angle >= 2*PI)
+       ship_angle -= 2*PI;
+   }
+    
+   if (fuel < 0)
     fuel = 0;
 
   // apply gravity
-  ship_vel += gravity;
+  ship_vel.y += GRAVITY;
   
   // update the ship's position
   ship_pos += ship_vel;
@@ -96,30 +144,12 @@ void update_ship(boolean & render_down_flame, boolean & render_left_flame, boole
   }
   if (ship_pos.y >= NUM_ROWS*LCDHEIGHT)
   {
-    ship_pos.x = 2*NUM_ROWS*LCDHEIGHT - ship_pos.y;
+    ship_pos.y = 2*NUM_ROWS*LCDHEIGHT - ship_pos.y;
     ship_vel.y = -ship_vel.y;
   }
   
   fuel = 1000;
 }
-
-/*
-void draw_ship(boolean render_down_flame, boolean render_left_flame, boolean render_right_flame) {
-  int shipx = (int)ship_pos.x % 84;
-  int shipy = (int)ship_pos.y % 48;
-   
-  gb.display.drawBitmap(shipx-4, shipy-8, ship);
-  if (grayscale_frame)
-  {
-    if (render_down_flame)
-      gb.display.drawBitmap(shipx-4, shipy, down_flame);
-    if (render_left_flame)
-      gb.display.drawBitmap(shipx-4-8, shipy-8, left_flame);
-    if (render_right_flame)
-      gb.display.drawBitmap(shipx-4+8, shipy-8, right_flame);
-  }
-}
-*/
 
 void draw_ship(boolean render_down_flame, boolean render_left_flame, boolean render_right_flame, boolean grayscale_frame) {
   
@@ -127,14 +157,30 @@ void draw_ship(boolean render_down_flame, boolean render_left_flame, boolean ren
   float ship_y = ship_pos.y;
   while (ship_y < 0)
     ship_y += LCDHEIGHT;
-  
-  int8_t src_x = 25;
-  int8_t src_y = 44;
-  int8_t dst_w = 5;
-  int8_t dst_h = 11;
-  int8_t dst_x = (int8_t)((int)ship_x % LCDWIDTH - 2);
-  int8_t dst_y = (int8_t)((int)ship_y % LCDHEIGHT - 2);
-  
+
+  //char center_x, center_y, no_flame_x, no_flame_y, no_flame_w, no_flame_h, flame_x, flame_y, flame_w, flame_h;
+  int angle = (int)(NUM_ANGLES * ship_angle / (2*PI) + 0.5f) % NUM_ANGLES;
+  ship_sprite_data * data = &angles[angle];
+  int8_t capsule_x = pgm_read_byte(&data->capsule_x);
+  int8_t capsule_y = pgm_read_byte(&data->capsule_y);
+  int8_t src_x, src_y, dst_w, dst_h;
+  if (!render_down_flame)
+  {
+    // hardcoded values...bad!
+    src_x = capsule_x-1;
+    src_y = capsule_y-1;
+    dst_w = 3;
+    dst_h = 3;
+  }
+  else
+  {
+    src_x = pgm_read_byte(&data->flame_x);
+    src_y = pgm_read_byte(&data->flame_y);
+    dst_w = pgm_read_byte(&data->flame_w);
+    dst_h = pgm_read_byte(&data->flame_h);    
+  }
+  int8_t dst_x = (int8_t)((int)ship_x % LCDWIDTH + src_x - capsule_x);
+  int8_t dst_y = (int8_t)((int)ship_y % LCDHEIGHT + src_y - capsule_y);
   
   gb.display.setColor(WHITE);
   drawBitmap(dst_x, dst_y, dst_w, dst_h, src_x, src_y, mask);
