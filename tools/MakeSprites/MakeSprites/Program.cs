@@ -44,7 +44,7 @@ namespace MakeSprites
 		static void CheckArgs(string[] args)
 		{
 			if (args.Length != 1)
-				throw new Exception("Usage: MakeSprites terrain.bmp");
+				throw new Exception("Usage: MakeSprites sprite_file.png");
 		}
 
 		static void LoadBitmap(string filename)
