@@ -16,6 +16,7 @@ namespace MakeMap
 		static int Width, Height, Columns, Rows;
 		static int[] Pixels;
 		static List<int>[][] Spans;
+		static List<Point>[][] Pads;
 
 		static void Main(string[] args)
 		{
@@ -42,7 +43,7 @@ namespace MakeMap
 		static void CheckArgs(string[] args)
 		{
 			if (args.Length != 1)
-				throw new Exception("Usage: MakeMap terrain.bmp");
+				throw new Exception("Usage: MakeMap terrain_image.png");
 		}
 		
 		static void LoadBitmap(string filename)
@@ -78,20 +79,35 @@ namespace MakeMap
 		static void CompressImage()
 		{			
 			Spans = new List<int>[Rows][];
+			Pads = new List<Point>[Rows][];
 			for (int row = 0; row < Rows; row++)
 			{
 				Spans[row] = new List<int>[Columns];
+				Pads[row] = new List<Point>[Columns];
 				for (int column = 0; column < Columns; column++)
 				{
 					var spans = Spans[row][column] = new List<int>();
+					var pads = Pads[row][column] = new List<Point>();
 					var last = 0;
 					var span_length = 0;
 					for (int x = 0; x < 84; x++)
 					{
 						for (int y = 0; y < 48; y++)
 						{
-							var current = Pixels[(row*48+y) * Width + (column*84+x)] == 0 ? 1 : 0;
-							//var current = Pixels[y * Width + x] == 0 ? 1 : 0;
+							var pixel = Pixels[(row*48+y) * Width + (column*84+x)];
+
+							// check for a pad
+							if ((pixel != 0x000000) && (pixel != 0xffffff))
+							{
+								// pad
+								pads.Add(new Point(x, y));
+
+								// set pad pixels to background
+								for (int i = 0; i < 5; i++)
+									Pixels[(row * 48 + y) * Width + (column * 84 + x + i)] = 0xffffff;
+							}
+
+							var current =  (pixel== 0) ? 1 : 0;
 							if (current != last)
 							{
 								spans.Add(span_length);
@@ -182,6 +198,45 @@ namespace MakeMap
 						Console.WriteLine();
 					}
 				}
+			}
+			Console.WriteLine("};");
+			Console.WriteLine();
+
+			// export the pads
+			int maxPads = 0;
+			for (int y=0; y<Rows; y++)
+				for (int x=0; x<Columns; x++)
+					maxPads = Math.Max(maxPads, Pads[y][x].Count());
+			Console.WriteLine(String.Format("#define MAX_PADS {0}", maxPads));
+			Console.WriteLine("const byte pads[NUM_ROWS][NUM_COLUMNS][MAX_PADS][2] PROGMEM = {");
+			for (int y = 0; y < Rows; y++)
+			{
+				Console.WriteLine("  {");
+				for (int x = 0; x < Columns; x++)
+				{					
+					Console.Write("    {");
+
+					var pads = Pads[y][x];
+					for (int i = 0; i < maxPads; i++)
+					{
+						if (i < pads.Count())
+							Console.Write("{" + String.Format("{0,3},{1,3}", pads[i].X, pads[i].Y) + "}");
+						else
+							Console.Write("{  0,  0}");
+						if (i < maxPads-1)
+							Console.Write(", ");
+					}
+					Console.Write("}");
+					if (x != Columns - 1)
+						Console.Write(", ");
+					else
+						Console.Write("  ");
+					Console.WriteLine("// row {0}, column {1}", y, x);
+				}
+				Console.Write("  }");
+				if (y != Rows-1)
+					Console.Write(",");
+				Console.WriteLine();
 			}
 			Console.WriteLine("};");
 		}

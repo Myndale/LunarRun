@@ -106,9 +106,32 @@ const byte * landscapes[NUM_ROWS][NUM_COLUMNS] PROGMEM = {
   {landscape_0_2,landscape_1_2,landscape_2_2}
 };
 
+#define MAX_PADS 5
+const byte pads[NUM_ROWS][NUM_COLUMNS][MAX_PADS][2] PROGMEM = {
+  {
+    {{ 14, 39}, { 61, 27}, { 73, 41}, {  0,  0}, {  0,  0}}, // row 0, column 0
+    {{  2, 34}, { 22, 35}, { 37, 14}, { 42, 28}, { 61,  7}}, // row 0, column 1
+    {{ 22, 23}, { 69, 32}, {  0,  0}, {  0,  0}, {  0,  0}}  // row 0, column 2
+  },
+  {
+    {{ 10, 29}, { 67, 26}, {  0,  0}, {  0,  0}, {  0,  0}}, // row 1, column 0
+    {{  5, 25}, { 23, 35}, { 54, 43}, {  0,  0}, {  0,  0}}, // row 1, column 1
+    {{  6, 30}, { 24, 33}, { 54, 43}, {  0,  0}, {  0,  0}}  // row 1, column 2
+  },
+  {
+    {{ 11, 43}, { 15, 22}, { 44, 34}, { 68,  6}, { 80, 39}}, // row 2, column 0
+    {{ 35, 14}, { 72, 38}, { 76, 16}, {  0,  0}, {  0,  0}}, // row 2, column 1
+    {{  9, 36}, { 36, 11}, { 39, 41}, { 54, 12}, { 56, 43}}  // row 2, column 2
+  }
+};
 
+// packed flags representing whether or not a pad has been visited, 1 bit per pad.
+byte pads_visited[NUM_ROWS][NUM_COLUMNS];
 
-void randomize_landscape() {
+void init_landscape() {
+  for (int y=0; y<NUM_ROWS; y++)
+    for (int x=0; x<NUM_COLUMNS; x++)
+      pads_visited[y][x] = 0;
 }
 
 void draw_landscape() {
@@ -126,26 +149,45 @@ void draw_landscape() {
     byte span2 = pgm_read_byte(landscape++);
     byte span3 = pgm_read_byte(landscape++);
     byte span4 = ((span1 >> 6) & 0x03) | ((span2 >> 4) & 0x0c) | ((span3 >> 2) & 0x30);
-    span1 &= 63;
-    span2 &= 63;
-    span3 &= 63;
-    white_span(span1, x, y);
-    black_span(span2, x, y);
-    white_span(span3, x, y);
+    white_span(span1 & 0x3f, x, y);
+    black_span(span2 & 0x3f, x, y);
+    white_span(span3 & 0x3f, x, y);
     black_span(span4, x, y);
+  }
+
+  // render all pads in black in preparation for collision detection  
+  for (int pad_num=0; pad_num<MAX_PADS; pad_num++)
+  {
+    byte x = pgm_read_byte(&pads[row][column][pad_num][0]);
+    if (!x)
+      break;
+    byte y = pgm_read_byte(&pads[row][column][pad_num][1]);
+    draw_pad(x, y, 0);
+  }
+  
+  // do collision detection against the current backbuffer image
+  
+  // draw animated pads again using gray-scale frames
+  int pad_frame = 1 + (gb.frameCount / 10) % 3;
+  byte visited = pads_visited[row][column];
+  for (int pad_num=0; pad_num<MAX_PADS; pad_num++, visited>>=1)
+  {
+    byte x = pgm_read_byte(&pads[row][column][pad_num][0]);
+    if (!x)
+      break;
+    byte y = pgm_read_byte(&pads[row][column][pad_num][1]);
+    if ((!visited & 1))
+      draw_pad(x, y, pad_frame);
   }
 }
 
 void white_span(byte span, byte & x, byte & y)
 {
-  for (int i=0; i<span; i++)
+  y += span;
+  while (y >= 48)
   {
-    y++;
-    if (y >= 48)
-    {
-      x++;
-      y = 0;
-    }
+    x++;
+    y -= 48;
   }
 }
 
@@ -162,4 +204,5 @@ void black_span(byte span, byte & x, byte & y)
     }
   }
 }
+
 
