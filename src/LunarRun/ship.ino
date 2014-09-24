@@ -65,75 +65,122 @@ struct ship_sprite_data
   char capsule_x, capsule_y, flame_x, flame_y, flame_w, flame_h;
 };
 
-// first array is without flame, second is with
 ship_sprite_data angles[] PROGMEM =
 {
-  {27,45,   25,44, 5,11},
-  {18,45,   14,44, 6,11},
-  { 9,45,    2,44, 9, 9},
-  { 9,36,    0,35,11, 6},
-  { 9,27,    0,25,11, 5},
-  { 9,18,    0,14,11, 6},
-  { 9, 9,    2, 2, 9, 9},  
-  {18, 9,   14, 0, 6,11},
-  {27, 9,   25,  0,5,11},
-  {36, 9,    35,0, 6,11},
-  {45, 9,   44, 2, 9, 9},
-  {45,18,   44,14,11, 6},
-  {45,27,   44,25,11, 5},
-  {45,36,   44,35,11, 6},  
-  {45,45,   44,44, 9, 9},
-  {36,45,   35,44, 6,11},
+  {
+    27,45,   25,44, 5,11  }
+  ,
+  {
+    18,45,   14,44, 6,11  }
+  ,
+  { 
+    9,45,    2,44, 9, 9  }
+  ,
+  { 
+    9,36,    0,35,11, 6  }
+  ,
+  { 
+    9,27,    0,25,11, 5  }
+  ,
+  { 
+    9,18,    0,14,11, 6  }
+  ,
+  { 
+    9, 9,    2, 2, 9, 9  }
+  ,  
+  {
+    18, 9,   14, 0, 6,11  }
+  ,
+  {
+    27, 9,   25,  0,5,11  }
+  ,
+  {
+    36, 9,    35,0, 6,11  }
+  ,
+  {
+    45, 9,   44, 2, 9, 9  }
+  ,
+  {
+    45,18,   44,14,11, 6  }
+  ,
+  {
+    45,27,   44,25,11, 5  }
+  ,
+  {
+    45,36,   44,35,11, 6  }
+  ,  
+  {
+    45,45,   44,44, 9, 9  }
+  ,
+  {
+    36,45,   35,44, 6,11  }
+  ,
 };
 
-const ship_sprite_data landing PROGMEM = {33, 15, 32, 14, 3, 5};
-const ship_sprite_data down_flame PROGMEM = {33, 15, 31, 20, 5, 4};
-const ship_sprite_data left_flame PROGMEM = {19, 15, 14, 14, 3, 3};
-const ship_sprite_data right_flame PROGMEM = {19, 15, 22, 14, 3, 3};
+const ship_sprite_data landing PROGMEM = {
+  33, 15, 32, 14, 3, 5};
+const ship_sprite_data down_flame PROGMEM = {
+  33, 15, 31, 20, 5, 4};
+const ship_sprite_data left_flame PROGMEM = {
+  19, 15, 14, 14, 3, 3};
+const ship_sprite_data right_flame PROGMEM = {
+  19, 15, 22, 14, 3, 3};
 
-const byte pad_sprites[][4] PROGMEM = {{1,58,5,2}, {7,58,5,2}, {13,58,5,2}, {19,58,5,2}};
+const byte pad_sprites[][4] PROGMEM = {
+  {
+    1,58,5,2  }
+  , {
+    7,58,5,2  }
+  , {
+    13,58,5,2  }
+  , {
+    19,58,5,2  }
+};
 
 #define NUM_ANGLES (int)(sizeof(angles) / sizeof(ship_sprite_data))
+#define BOUNCE_FACTOR 0.8f
 
 void update_ship(boolean & render_down_flame, boolean & render_left_flame, boolean & render_right_flame)
 {
   if (gb.buttons.pressed(BTN_B))
   {
-        ship_mode = (ship_mode == Maneuver) ? Landing : Maneuver;
-        ship_angle = 0;
+    ship_mode = (ship_mode == Maneuver) ? Landing : Maneuver;
+    ship_state = Flying;
+    ship_angle = 0;
   }
-      
+
   if (ship_mode == Maneuver)
     update_maneuver(render_down_flame);
   else if (ship_mode == Landing)
     update_landing(render_down_flame, render_left_flame, render_right_flame);
-        
-   if (fuel < 0)
+
+  if (fuel < 0)
     fuel = 0;
 
   // apply gravity
-  ship_vel.y += GRAVITY;
-  
+  if (ship_state != Landed)
+    ship_vel.y += GRAVITY;
+
   // update the ship's position
   ship_pos += ship_vel;
-  
+
   // clamp to landscape boundry
   if (ship_pos.x < 0)
   {
     ship_pos.x = -ship_pos.x;
     ship_vel.x = -ship_vel.x;
   }
-  if (ship_pos.x >= NUM_COLUMNS*LCDWIDTH)
+  if (ship_pos.x >= columns*LCDWIDTH)
   {
-    ship_pos.x = 2*NUM_COLUMNS*LCDWIDTH - ship_pos.x;
+    ship_pos.x = 2*columns*LCDWIDTH - ship_pos.x;
     ship_vel.x = -ship_vel.x;
   }
-  if (ship_pos.y >= NUM_ROWS*LCDHEIGHT)
+  if (ship_pos.y >= rows*LCDHEIGHT)
   {
-    ship_pos.y = 2*NUM_ROWS*LCDHEIGHT - ship_pos.y;
+    ship_pos.y = 2*rows*LCDHEIGHT - ship_pos.y;
     ship_vel.y = -ship_vel.y;
   }
-  
+
   fuel = 1000;
 }
 
@@ -141,20 +188,23 @@ void update_maneuver(boolean & render_down_flame) {
   // downward thrust
   if ((fuel > 0) && (gb.buttons.repeat(BTN_DOWN, 1) || gb.buttons.repeat(BTN_A, 1)))
   {
+    ship_state = Flying;
     ship_vel.x += MANUEVER_THRUST * sin(ship_angle);
     ship_vel.y -= MANUEVER_THRUST * cos(ship_angle);
-    render_down_flame = true;
+    render_down_flame = true;    
   }
-      
+
   // rotation
   if (gb.buttons.repeat(BTN_LEFT, 1))
   {
+    ship_state = Flying;
     ship_angle -= ROTATION_SPEED;
     while (ship_angle < 0)
       ship_angle += 2*PI;
   }
   if (gb.buttons.repeat(BTN_RIGHT, 1))
   {
+    ship_state = Flying;
     ship_angle += ROTATION_SPEED;
     while (ship_angle >= 2*PI)
       ship_angle -= 2*PI;
@@ -163,12 +213,105 @@ void update_maneuver(boolean & render_down_flame) {
 
 void update_landing(boolean & render_down_flame, boolean & render_left_flame, boolean & render_right_flame) {
   // apply thrusters
-  if ((fuel > 0) && (gb.buttons.repeat(BTN_DOWN, 1) || gb.buttons.repeat(BTN_A, 1)))
-    ship_vel.y -= LANDING_THRUST, render_down_flame = true;
+
+  if (!gb.buttons.repeat(BTN_A, 1))
+    thrust_released = true;
+  if ((fuel > 0) && thrust_released && (gb.buttons.repeat(BTN_DOWN, 1) || gb.buttons.repeat(BTN_A, 1)))
+    ship_state = Flying, ship_vel.y -= LANDING_THRUST, render_down_flame = true;
   if ((fuel > 0) && gb.buttons.repeat(BTN_LEFT, 1))
-    ship_vel.x -= SIDEWAYS_THRUST, render_right_flame = true;
+    ship_state = Flying, ship_vel.x -= SIDEWAYS_THRUST, render_right_flame = true;
   if ((fuel > 0) && gb.buttons.repeat(BTN_RIGHT, 1))
-    ship_vel.x += SIDEWAYS_THRUST, render_left_flame = true;
+    ship_state = Flying, ship_vel.x += SIDEWAYS_THRUST, render_left_flame = true;
+
+  /*
+  // test for landing on the pads
+   if (ship_vel.y > 0)
+   {
+   int column = (int)(ship_pos.x / 84);
+   int row  = (int)(ship_pos.y / 48);
+   float ship_x = ship_pos.x;
+   float ship_y = ship_pos.y;
+   while (ship_y < 0)
+   ship_y += LCDHEIGHT;
+   int iship_x = (int)ship_x;
+   int iship_y = (int)ship_y;
+   int8_t capsule_x = pgm_read_byte(&landing.capsule_x);
+   int8_t capsule_y = pgm_read_byte(&landing.capsule_y);
+   int8_t src_x = pgm_read_byte(&landing.flame_x);
+   int8_t src_y = pgm_read_byte(&landing.flame_y);
+   int8_t dst_w = pgm_read_byte(&landing.flame_w);
+   int8_t dst_h = pgm_read_byte(&landing.flame_h);    
+   int8_t x1 = iship_x % LCDWIDTH + src_x - capsule_x;
+   int8_t y1 = iship_y % LCDHEIGHT + src_y - capsule_y;
+   int8_t x2 = x1 + dst_w - 1;
+   int8_t y2 = y1 + dst_h - 1;
+   for (int8_t pad_num=0; pad_num<MAX_PADS; pad_num++)
+   {
+   byte x = pgm_read_byte(&pads[row][column][pad_num][0]);
+   if (!x)
+   break;
+   byte y = pgm_read_byte(&pads[row][column][pad_num][1]);
+   
+   // are we on top of this pad?
+   if ((x1>=x) && (x2<=x+4) && (y2==y-2))
+   {
+   land(column, row, pad_num);
+   ship_state = Landed;
+   ship_vel = vector2(0, 0);
+   }
+   }
+   }
+   */
+}
+
+void do_collision_detection() {
+  // check center of ship
+  int sx = (int)ship_pos.x % LCDWIDTH;
+  int sy = (int)ship_pos.y % LCDHEIGHT;
+  if (do_collision_detection(sx, sy))
+    return;
+
+  // if we're in landing mode then check the left and right landing legs
+  if (ship_mode == Landing)
+  {
+    if (do_collision_detection(sx-1, sy+3))
+      return;
+    if (do_collision_detection(sx+1, sy+3))
+      return;
+  }
+}
+
+boolean do_collision_detection(int sx, int sy) {
+  if ((sx < 0) || (sx >=LCDWIDTH) || (sy >= LCDHEIGHT))
+    return false;
+  uint8_t * display = gb.display.getBuffer();
+  if (!(display[(sy/8) * LCDWIDTH + sx] & (0x01 << (sy&7))))
+    return false;
+
+  // we hit something, estimate the gradient at the collision point based on neighbouring pixels
+  vector2 reflection(0,0);
+  int num_reflection_points = 0;
+  for (int dy=-1, thisy=sy-1; dy<=1; dy++, thisy++)
+    if ((thisy >= 0) && (thisy < LCDHEIGHT))
+      for (int dx=-1, thisx=sx-1; dx<=1; dx++, thisx++)
+        if ((thisx >= 0) && (thisx < LCDWIDTH) && (dx != 0) && (dy != 0) && display[(thisy/8) * LCDWIDTH + thisx] & (0x01 << (thisy&7)))
+          {
+              reflection += vector2(-dx, -dy).normalize();
+              num_reflection_points++;
+          }
+      
+  if (num_reflection_points == 0)
+    ship_vel = vector2(0.0f, 0.0f);
+  else
+  {
+    // bounce off the reflection surface and dampen velocity
+    reflection = reflection.normalize();
+    ship_vel = (ship_vel - 2 * (ship_vel * reflection) * reflection) * BOUNCE_FACTOR;
+  }
+  
+  // revert back to last known non-collision point
+  ship_pos = last_ship_pos;
+  return true;
 }
 
 void draw_ship(boolean render_down_flame, boolean render_left_flame, boolean render_right_flame, boolean grayscale_frame) {
@@ -179,7 +322,7 @@ void draw_ship(boolean render_down_flame, boolean render_left_flame, boolean ren
 }
 
 void draw_maneuver(boolean render_down_flame, boolean grayscale_frame) {
-  
+
   float ship_x = ship_pos.x;
   float ship_y = ship_pos.y;
   while (ship_y < 0)
@@ -208,7 +351,7 @@ void draw_maneuver(boolean render_down_flame, boolean grayscale_frame) {
   }
   int8_t dst_x = (int8_t)((int)ship_x % LCDWIDTH + src_x - capsule_x);
   int8_t dst_y = (int8_t)((int)ship_y % LCDHEIGHT + src_y - capsule_y);
-  
+
   gb.display.setColor(WHITE);
   drawBitmap(dst_x, dst_y, dst_w, dst_h, src_x, src_y, mask);
   gb.display.setColor(BLACK);
@@ -225,7 +368,7 @@ void draw_landing(boolean render_down_flame, boolean render_left_flame, boolean 
     ship_y += LCDHEIGHT;
   int iship_x = (int)ship_x;
   int iship_y = (int)ship_y;
-    
+
   draw_ship_data(iship_x, iship_y, landing);
   if (render_down_flame)
     draw_ship_data(iship_x, iship_y, down_flame);
@@ -268,7 +411,7 @@ void draw_pad(byte dst_x, byte dst_y, byte pad_frame)
   byte dst_w = pgm_read_byte(&pad_sprites[pad_frame][2]);
   byte dst_h = pgm_read_byte(&pad_sprites[pad_frame][3]);
   dst_y = dst_y - dst_h + 1;
-  
+
   if (pad_frame == 0)
   {
     gb.display.setColor(BLACK);
@@ -285,4 +428,20 @@ void draw_pad(byte dst_x, byte dst_y, byte pad_frame)
       drawBitmap(dst_x, dst_y, dst_w, dst_h, src_x, src_y, image2);
   }
 }
+
+/*
+void place_on_pad(int8_t column, int8_t row, int8_t pad_num)
+ {
+ int8_t capsule_x = pgm_read_byte(&landing.capsule_x);
+ int8_t capsule_y = pgm_read_byte(&landing.capsule_y);
+ int8_t dst_w = pgm_read_byte(&landing.flame_w);
+ int8_t dst_h = pgm_read_byte(&landing.flame_h);    
+ byte x = pgm_read_byte(&pads[row][column][pad_num][0]);
+ byte y = pgm_read_byte(&pads[row][column][pad_num][1]);
+ ship_pos = vector2(x + (dst_w + 1) / 2, y - dst_h);
+ land(column, row,  pad_num);
+ }
+ */
+
+
 

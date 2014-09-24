@@ -12,6 +12,7 @@ namespace MakeMap
 {
 	class Program
 	{
+		static string level_name;
 		static Bitmap Source;
 		static int Width, Height, Columns, Rows;
 		static int[] Pixels;
@@ -51,6 +52,7 @@ namespace MakeMap
 			if (!File.Exists(filename))
 				throw new Exception("Input file doesn't exist.");
 
+			level_name = Path.GetFileNameWithoutExtension(filename).ToLower();
 			try {Source = new Bitmap(filename);}
 			catch {throw new Exception("Couldn't load image, please specify a valid image file.");}
 
@@ -90,6 +92,8 @@ namespace MakeMap
 					var pads = Pads[row][column] = new List<Point>();
 					var last = 0;
 					var span_length = 0;
+					bool hasWhite = false;
+					bool hasBlack = false;
 					for (int x = 0; x < 84; x++)
 					{
 						for (int y = 0; y < 48; y++)
@@ -108,6 +112,8 @@ namespace MakeMap
 							}
 
 							var current =  (pixel== 0) ? 1 : 0;
+							hasWhite |= (current == 0);
+							hasBlack |= (current == 1);
 							if (current != last)
 							{
 								spans.Add(span_length);
@@ -128,6 +134,10 @@ namespace MakeMap
 
 					while (spans.Count() % 4 != 0)
 						spans.Add(0);
+
+					// don't store anything if the section is a constant color, it'll just waste memory
+					if (!hasWhite || !hasBlack)
+						spans.Clear();
 				}
 			}
 		}
@@ -140,6 +150,8 @@ namespace MakeMap
 				for (int column = 0; column < Columns; column++)
 				{
 					var spans = Spans[row][column];
+					if (spans.Count == 0)
+						continue;
 					List<int> bytes = new List<int>();
 					for (int i = 0; i < spans.Count(); i += 4)
 					{
@@ -157,7 +169,7 @@ namespace MakeMap
 					total_bytes += bytes.Count();
 
 					Console.WriteLine(String.Format("// {0} bytes", bytes.Count()));
-					Console.WriteLine("const byte landscape_" + column + "_" + row + "[] PROGMEM = {");
+					Console.WriteLine("const byte " + level_name + "_" + column + "_" + row + "[] PROGMEM = {");
 					const int bytes_per_line = 32;
 					for (int i = 0; i < bytes.Count(); i++)
 					{
@@ -177,31 +189,33 @@ namespace MakeMap
 				}
 
 			// export the screen index
-			Console.WriteLine(String.Format("#define NUM_COLUMNS {0}", Columns));
-			Console.WriteLine(String.Format("#define NUM_ROWS {0}", Rows));
 			Console.WriteLine();
 			Console.WriteLine(String.Format("// total landscape data: {0} bytes", total_bytes));
-			Console.WriteLine("const byte * landscapes[NUM_ROWS][NUM_COLUMNS] PROGMEM = {");
+			Console.WriteLine("const byte * " + level_name + "_sections[] PROGMEM = {");
 			for (int row=0; row<Rows; row++)
 			{
-				Console.Write("  {");
+				Console.Write("  ");
 				for (int column=0; column<Columns; column++)
 				{
-					Console.Write(String.Format("landscape_{0}_{1}", column, row));
-					if (column < Columns - 1)
-						Console.Write(",");
-					else
-					{
-						Console.Write("}");
-						if (row < Rows-1)
-							Console.Write(",");
-						Console.WriteLine();
-					}
+					var spans = Spans[row][column];
+					var str = (spans.Count > 0)
+						? String.Format("{0}_{1}_{2}", level_name, column, row)
+						: "NULL";
+					if ((column < Columns-1) || (row < Rows-1))
+						str += ",";
+					str = str.PadRight(level_name.Length + 8);
+					Console.Write(str);					
 				}
+				if (row != Rows - 1)
+					Console.WriteLine();
 			}
+			Console.WriteLine();
 			Console.WriteLine("};");
 			Console.WriteLine();
 
+			Console.WriteLine("level " + level_name + " PROGMEM = {" + Columns.ToString() + ", " + Rows.ToString() + ", " + level_name + "_sections, 10.0f, 10.0f};");
+
+			/*
 			// export the pads
 			int maxPads = 0;
 			for (int y=0; y<Rows; y++)
@@ -239,6 +253,7 @@ namespace MakeMap
 				Console.WriteLine();
 			}
 			Console.WriteLine("};");
+			 * */
 		}
 	}
 }
