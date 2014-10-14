@@ -54,6 +54,7 @@ const char* const menu[] PROGMEM = {strContinue, strTutorial, strLevel1, strLeve
 
 
 void setup(){
+  Serial.begin(9600);
   gb.begin();
   gb.setFrameRate(41);  // magic frame rate for best gray-scale
   title_screen();
@@ -147,4 +148,4 @@ void init_game(level * next_level) {
   thrust_released = false;
 }
 
-
+  
