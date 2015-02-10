@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -27,6 +28,7 @@ namespace MakeMap
 				LoadBitmap(args[0]);
 				ExtractImage();
 				CompressImage();
+				CompressImage2();
 				ExportTerrain();
 			}
 			catch (Exception e)
@@ -140,6 +142,125 @@ namespace MakeMap
 						spans.Clear();
 				}
 			}
+		}
+
+		const int BIN_BITS = 6;
+		const int NUM_BINS = 64 - 2;
+
+		static void CompressImage2()
+		{
+			int numBits = 0;
+			for (int row = 0; row < Rows; row++)
+			{
+				for (int column = 0; column < Columns; column++)
+				{					
+					// convert image to an array of pixels
+					List<int> pixels = new List<int>();
+					for (int y = 0; y < 48; y++)
+					{
+						for (int x = 0; x < 84; x++)
+						{
+							var pixel = Pixels[(row * 48 + y) * Width + (column * 84 + x)];
+							var current = (pixel == 0) ? 1 : 0;
+							pixels.Add(current);
+						}
+					}
+
+					var bins = new List<List<int>>();
+					var encoded = new List<int>();
+
+					int pos = 0;
+					while (pos < pixels.Count())
+					{
+						List<int> newBin;						
+						int longestIndex = FindLongestBin(bins, pixels, pos);
+						if (longestIndex == -1)
+						{
+							encoded.Add(pixels[pos]);
+							newBin = new List<int> { pixels[pos++] };
+							numBits += BIN_BITS;
+						}
+						else
+						{
+							var longestBin = bins[longestIndex];
+							newBin = longestBin.ToList();
+							pos += longestBin.Count();
+							if (pos < pixels.Count())
+								encoded.Add(longestIndex * 2 + pixels[pos] + 2);
+							else
+								encoded.Add(longestIndex * 2 + 2);
+							if (pos < pixels.Count())
+								newBin.Add(pixels[pos++]);
+							numBits += BIN_BITS + 1;
+						}
+
+						// add this value and add the bin to our queue
+						bins.Add(newBin);
+
+						// if we have too many bins then get rid of the head
+						if (bins.Count() > NUM_BINS)
+							bins.RemoveAt(0);
+					}
+
+					// decompress and test, just to make sure compression is working properly
+					var decoded = Decompress(encoded); // might wind up a bit larger but that doesn't matter, we can fix that at run-time
+					for (int i=0; i<pixels.Count(); i++)
+					{
+						Debug.Assert(decoded[i] == pixels[i]);
+					}
+				}
+			}
+		}
+
+		static List<int> Decompress(List<int> encoded)
+		{
+			var decoded = new List<int>();
+			var bins = new List<List<int>>();
+			for (int i = 0; i < encoded.Count(); i++)
+			{
+				int index = encoded[i];
+				List<int> newBin;
+				if (index == 0)
+					newBin = new List<int> { 0 };
+				else if (index == 1)
+					newBin = new List<int> { 1 };
+				else
+				{
+					index -= 2;
+					int binNum = index >> 1;
+					int pixel = index & 1;
+					newBin = bins[binNum].ToList();
+					newBin.Add(pixel);
+				}
+				bins.Add(newBin);
+				for (int j = 0; j < newBin.Count(); j++)
+					decoded.Add(newBin[j]);
+				if (bins.Count() > NUM_BINS)
+					bins.RemoveAt(0);
+			}
+			return decoded;
+		}
+
+		static int FindLongestBin(List<List<int>> bins, List<int> pixels, int pos)
+		{
+			int longestIndex = -1;
+			for (int binNum=0; binNum<bins.Count(); binNum++)
+			{
+				if (BinMatch(bins[binNum], pixels, pos))
+				{
+					if ((longestIndex == -1) || (bins[binNum].Count() > bins[longestIndex].Count()))
+						longestIndex = binNum;
+				}
+			}
+			return longestIndex;
+		}
+
+		static bool BinMatch(List<int> bin, List<int> pixels, int pos)
+		{
+			for (int i=0; (i<bin.Count()) && (pos < pixels.Count()); i++, pos++)
+				if (pixels[pos] != bin[i])
+					return false;
+			return true;
 		}
 
 		static void ExportTerrain()

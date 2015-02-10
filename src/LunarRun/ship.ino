@@ -294,9 +294,9 @@ boolean do_collision_detection(int sx, int sy) {
   for (int dy=-1, thisy=sy-1; dy<=1; dy++, thisy++)
     if ((thisy >= 0) && (thisy < LCDHEIGHT))
       for (int dx=-1, thisx=sx-1; dx<=1; dx++, thisx++)
-        if ((thisx >= 0) && (thisx < LCDWIDTH) && (dx != 0) && (dy != 0) && display[(thisy/8) * LCDWIDTH + thisx] & (0x01 << (thisy&7)))
+        if ((thisx >= 0) && (thisx < LCDWIDTH) && ((dx != 0) || (dy != 0)) && display[(thisy/8) * LCDWIDTH + thisx] & (0x01 << (thisy&7)))
           {
-              reflection += vector2(-dx, -dy).normalize();
+              reflection += vector2(dx, dy).normalize();
               num_reflection_points++;
           }
       
@@ -304,8 +304,8 @@ boolean do_collision_detection(int sx, int sy) {
     ship_vel = vector2(0.0f, 0.0f);
   else
   {
-    // bounce off the reflection surface and dampen velocity
-    reflection = reflection.normalize();
+    // bounce off the reflection surface and dampen velocity        
+    reflection = -reflection.normalize();   
     ship_vel = (ship_vel - 2 * (ship_vel * reflection) * reflection) * BOUNCE_FACTOR;
   }
   
