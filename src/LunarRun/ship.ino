@@ -170,6 +170,7 @@ void update_ship(boolean & render_down_flame, boolean & render_left_flame, boole
     ship_pos.x = -ship_pos.x;
     ship_vel.x = -ship_vel.x;
   }
+  /*
   if (ship_pos.x >= columns*LCDWIDTH)
   {
     ship_pos.x = 2*columns*LCDWIDTH - ship_pos.x;
@@ -180,6 +181,7 @@ void update_ship(boolean & render_down_flame, boolean & render_left_flame, boole
     ship_pos.y = 2*rows*LCDHEIGHT - ship_pos.y;
     ship_vel.y = -ship_vel.y;
   }
+  */
 
   fuel = 1000;
 }

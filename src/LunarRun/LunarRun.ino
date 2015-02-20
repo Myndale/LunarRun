@@ -1,7 +1,7 @@
-#include <SPI.h>
+hat #include <SPI.h>
 #include <Gamebuino.h>
+#include <petit_fatfs.h>
 #include "vector2.h"
-#include "levels.h"
 Gamebuino gb;
 
 enum ship_mode
@@ -55,9 +55,14 @@ const char* const menu[] PROGMEM = {strContinue, strTutorial, strLevel1, strLeve
 
 void setup(){
   Serial.begin(9600);
+  Serial.println("Starting...");
+
+  spi_init();
+  PFFS.begin(2, rx, tx);
+  
   gb.begin();
   gb.setFrameRate(41);  // magic frame rate for best gray-scale
-  title_screen();
+  //title_screen();
   main_menu();
 }
 
@@ -80,6 +85,7 @@ void loop(){
 
 void update_game() {
   if(gb.update()) {
+    /*
     boolean render_down_flame = false, render_left_flame = false, render_right_flame = false;       
     grayscale_frame = !grayscale_frame;
 
@@ -90,12 +96,15 @@ void update_game() {
     }
 
     update_ship(render_down_flame, render_left_flame, render_right_flame);
+    */
     draw_landscape(); // landscape needs to be drawn first in order for collision detection to work
+    /*
     do_collision_detection();
     draw_ship(render_down_flame, render_left_flame, render_right_flame, grayscale_frame);
     //draw_fuel();
     last_ship_pos = ship_pos;
     last_ship_vel = ship_vel;
+    */
   }
 }
 
@@ -105,7 +114,7 @@ void title_screen() {
 }
 
 void main_menu() {
-  level * next_level;
+  /*
   int result;
   if (current_level == NULL)
     result = gb.menu(menu+1, MENULENGTH-1) + 1;
@@ -132,12 +141,16 @@ void main_menu() {
     gui = Title;
     return;
   }
+  */
   gui = Playing;
-  init_game(next_level);
+  init_game();
 }
 
-void init_game(level * next_level) {
-  init_landscape(next_level);
+void init_game(/*level * next_level*/) {
+  Serial.println("init_game");
+  gb.display.persistence = true;
+  init_landscape(/*next_level*/);
+  /*
   float x = pgm_read_float(&current_level->start_pos_x);
   float y = pgm_read_float(&current_level->start_pos_y);
   ship_pos = last_ship_pos = vector2(x, y);
@@ -146,6 +159,7 @@ void init_game(level * next_level) {
   ship_mode = Landing;
   ship_state = Flying;
   thrust_released = false;
+  */
 }
 
   

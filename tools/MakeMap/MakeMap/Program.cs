@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -11,6 +12,11 @@ using System.Threading.Tasks;
 
 namespace MakeMap
 {
+	struct MapLevel
+	{
+		public int column, row, offset;
+	}
+
 	class Program
 	{
 		static string level_name;
@@ -20,16 +26,25 @@ namespace MakeMap
 		static List<int>[][] Spans;
 		static List<Point>[][] Pads;
 
+		static int whites = 0;
+		static int blacks = 0;
+		static int recurses = 0;
+		static int raws = 0;
+
 		static void Main(string[] args)
 		{
+			var test = Wheeler("^BANANA|");
 			try
 			{
 				CheckArgs(args);
 				LoadBitmap(args[0]);
 				ExtractImage();
-				CompressImage();
-				CompressImage2();
-				ExportTerrain();
+				//CompressImage();
+				//CompressImage2();
+				CompressImage3();
+				//ExportTerrain();
+				//CompressImage4();
+				ExportLevels(args[1]);
 			}
 			catch (Exception e)
 			{
@@ -45,7 +60,7 @@ namespace MakeMap
 
 		static void CheckArgs(string[] args)
 		{
-			if (args.Length != 1)
+			if (args.Length != 2)
 				throw new Exception("Usage: MakeMap terrain_image.png");
 		}
 		
@@ -81,7 +96,7 @@ namespace MakeMap
 		}
 
 		static void CompressImage()
-		{			
+		{
 			Spans = new List<int>[Rows][];
 			Pads = new List<Point>[Rows][];
 			for (int row = 0; row < Rows; row++)
@@ -210,6 +225,313 @@ namespace MakeMap
 					}
 				}
 			}
+		}
+
+		static void CompressImage3()
+		{
+			List<byte> allBytes = new List<byte>();
+
+			int total_size = 0;
+			int max_level_size = 0;
+			int num_levels = 0;
+			for (int row = 0; row < Rows; row++)
+			{
+				for (int column = 0; column < Columns; column++)
+				{
+					var screen = new byte[504];
+					for (int x = 0, ofs=0; x < 84; x++)
+					{
+						for (int y = 0; y < 48; y++, ofs++)
+						{
+							var pixel = Pixels[(row * 48 + y) * Width + (column * 84 + x)];
+							if (pixel != 0xffffff)
+								screen[ofs/8] = (byte)(screen[ofs/8] | (1 << (ofs%8)));
+						}
+					}
+					if (allWhite(screen))
+						continue;
+					if (allBlack(screen))
+						continue;
+					num_levels++;
+					for (int i = 0; i < screen.Count(); i++)
+						allBytes.Add(screen[i]);
+					int size = CompressScreen2(screen);
+					total_size += size;
+					max_level_size = Math.Max(max_level_size, size);
+				}
+			}
+
+			var all = allBytes.ToArray();
+			File.WriteAllBytes(@"c:\temp\test1.dat", all);
+			total_size = CompressScreen2(all);
+			all = Wheeler(all);
+			File.WriteAllBytes(@"c:\temp\test2.dat", all);
+			var total_size2 = CompressScreen2(all);
+
+			Console.WriteLine(String.Format("Num levels: {0}", num_levels));
+			Console.WriteLine(String.Format("Max size:   {0}", max_level_size / 8));
+			Console.WriteLine(String.Format("Total size: {0}", total_size / 8));
+			Console.WriteLine(String.Format("Whites:     {0}", whites));
+			Console.WriteLine(String.Format("Blacks:     {0}", blacks));
+			Console.WriteLine(String.Format("Raws:       {0}", raws));
+			Console.WriteLine(String.Format("Recurses:   {0}", recurses));
+		}
+
+		static byte[] Wheeler(byte[] screen)
+		{
+			// create all rotations
+			List<int> rotations = new List<int>();
+			for (int i = 0; i < screen.Length; i++)
+				rotations.Add(i);
+
+			// sort them
+			Comparison<int> comparer = new Comparison<int>((diff1, diff2) =>
+			{
+				for (int i = 0; i < screen.Length; i++)
+				{
+					var ch1 = screen[(i + diff1) % screen.Length];
+					var ch2 = screen[(i + diff2) % screen.Length];
+					if (ch1 < ch2)
+						return -1;
+					else if (ch1 > ch2)
+						return 1;
+				}
+				return 0;
+			});
+			rotations.Sort(comparer);
+
+			// construct result and return
+			byte[] result = new byte[screen.Length];
+			for (int i = 0; i < rotations.Count(); i++)
+			{
+				var r = rotations[i];
+				result[i] = screen[(r + screen.Length - 1) % screen.Length];
+			}
+			return result;
+		}
+
+		static string Wheeler(string screen)
+		{
+			// create all rotations
+			List<int> rotations = new List<int>();
+			for (int i = 0; i < screen.Length; i++)
+				rotations.Add(i);
+
+			// sort them
+			Comparison<int> comparer = new Comparison<int>((diff1, diff2) =>
+			{
+				for (int i = 0; i < screen.Length; i++)
+				{
+					var ch1 = screen[(i+diff1)%screen.Length];
+					var ch2 = screen[(i+diff2)%screen.Length];
+					if (ch1 < ch2)
+						return -1;
+					else if (ch1 > ch2)
+						return 1;
+				}
+				return 0;
+			});
+			rotations.Sort(comparer);
+
+			// construct result and return
+			string result = "";
+			for (int i = 0; i < rotations.Count(); i++)
+			{
+				var r = rotations[i];
+				result += screen[(r + screen.Length-1) % screen.Length];
+			}
+			return result;
+		}
+
+		static void CompressImage4()
+		{
+			int total_size = 0;
+			int max_level_size = 0;
+			int num_levels = 0;
+
+			// find tree for most compressed level
+			int smallest_size = 1000;
+			HuffmanTree smallestHuffmanTree = new HuffmanTree();
+			for (int row = 0; row < Rows; row++)
+			{
+				for (int column = 0; column < Columns; column++)
+				{
+					int ofs = 0;
+					var screen = new byte[84*48/8];
+					for (int x = 0; x < 84; x++)
+					{
+						for (int y = 0; y < 48; y += 8)
+						{
+							for (int dy = 0; dy < 8; dy++)
+							{
+								var pixel = Pixels[(row * 48 + (y + dy)) * Width + (column * 84 + x)];
+								if (pixel != 0xffffff)
+									screen[ofs] = (byte)(screen[ofs] | (1 << dy));
+							}
+							ofs++;
+						}
+					}
+
+					if (allWhite(screen.ToArray()))
+						continue;
+					if (allBlack(screen.ToArray()))
+						continue;
+
+					string input = new String(screen.Select(c => (char)c).ToArray());
+
+					/*
+					HuffmanTree huffmanTree = new HuffmanTree();
+					huffmanTree.Build(input);
+					BitArray encoded = huffmanTree.Encode(input);
+					int size = encoded.Length;
+					 * */
+
+					HuffManEncoder encoder = new HuffManEncoder();
+					int size = (int)encoder.EncodeByteArray(screen, "test.dat");
+
+					total_size += size;
+					max_level_size = Math.Max(max_level_size, size);
+
+					if (size < smallest_size)
+					{
+						smallest_size = size;
+						//smallestHuffmanTree = huffmanTree;
+					}
+				}
+			}
+
+			Console.WriteLine(String.Format("Num levels: {0}", num_levels));
+			Console.WriteLine(String.Format("Max size:   {0}", max_level_size));
+			Console.WriteLine(String.Format("Total size: {0}", total_size));
+			Console.WriteLine(String.Format("Whites:     {0}", whites));
+			Console.WriteLine(String.Format("Blacks:     {0}", blacks));
+			Console.WriteLine(String.Format("Raws:       {0}", raws));
+			Console.WriteLine(String.Format("Recurses:   {0}", recurses));
+		}
+
+
+		static int CompressScreen(int[] screen, int pos, int length)
+		{
+			if (length==1)
+				return 1;
+
+			// check if I'm all white
+			if (allWhite(screen, pos, length))
+			{
+				whites++;
+				return 2;
+			}
+
+			// check if I'm all black
+			if (allBlack(screen, pos, length))
+			{
+				blacks++;
+				return 3;
+			}
+
+			int half_length = length / 2;
+			int recurse = CompressScreen(screen, pos, half_length) + CompressScreen(screen, pos + half_length, half_length);
+			if (recurse < length)
+			{
+				recurses++;
+				return 1 + recurse;
+			}
+			else
+			{
+				raws++;
+				return 3 + length;
+			}
+		}
+
+		const int SPAN_BITS = 10;
+		const int MAX_SPAN = (1<<SPAN_BITS) - 256;
+		const int LENGTH_BITS = 5;
+		const int MAX_LENGTH = 1 << LENGTH_BITS;
+
+		static int CompressScreen2(byte[] screen)
+		{
+			int size = 0;
+			int pos = 0;
+			while (pos < screen.Length)
+			{
+				int offset;
+				int length = getLongestSpan(screen, pos, out offset);
+
+				for (int i = 0; i < length; i++)
+					Debug.Assert(screen[offset + i] == screen[pos + i]);
+
+				pos += length;
+				if (length == 0)
+					pos++;
+				size += SPAN_BITS;
+				if (length > 0)
+					size += LENGTH_BITS;
+			}
+
+			return size;
+		}
+
+		static int getLongestSpan(byte[] screen, int pos, out int offset)
+		{
+			offset = -1;
+			int start = Math.Max(0, pos - MAX_SPAN);
+			int longest_span = 0;
+			while (start < pos)
+			{
+				int this_len = getSpanLength(screen, start, pos);
+				if (this_len > longest_span)
+				{
+					longest_span = this_len;
+					offset = start;
+				}
+				
+				start++;
+			}
+			return longest_span;
+		}
+
+		static int getSpanLength(byte[] screen, int start, int pos)
+		{
+			int len = 0;
+			while ((pos < screen.Length) && (len<MAX_LENGTH) && (screen[start] == screen[pos]))
+			{
+				len++;
+				start++;
+				pos++;
+			}
+			return len;
+		}
+
+		static bool allWhite(int[] screen, int pos, int length)
+		{
+			for (int i = 0; i < length; i++)
+				if (screen[pos + i] == 1)
+					return false;
+			return true;
+		}
+
+		static bool allBlack(int[] screen, int pos, int length)
+		{
+			for (int i = 0; i < length; i++)
+				if (screen[pos + i] == 0)
+					return false;
+			return true;
+		}
+
+		static bool allWhite(byte[] screen)
+		{
+			for (int i = 0; i < screen.Length; i++)
+				if (screen[i] != 0x00)
+					return false;
+			return true;
+		}
+
+		static bool allBlack(byte[] screen)
+		{
+			for (int i = 0; i < screen.Length; i++)
+				if (screen[i] != 0xff)
+					return false;
+			return true;
 		}
 
 		static List<int> Decompress(List<int> encoded)
@@ -376,5 +698,61 @@ namespace MakeMap
 			Console.WriteLine("};");
 			 * */
 		}
+
+		static void ExportLevels(string filename)
+		{
+			var levels = new List<MapLevel>();
+			int offset = 0;
+			int total_size = 0;
+
+			// find tree for most compressed level
+			using (var file = File.Create(filename))
+			{
+				for (int row = 0; row < Rows; row++)
+				{
+					for (int column = 0; column < Columns; column++)
+					{
+						var screen = new byte[84 * 48 / 8];
+
+						for (int y = 0, ofs = 0; y < 48; y += 8)
+							for (int x = 0; x < 84; x++, ofs++)
+								for (int dy = 0; dy < 8; dy++)
+								{
+									var pixel = Pixels[(row * 48 + (y + dy)) * Width + (column * 84 + x)];
+									if (pixel != 0xffffff)
+										screen[ofs] = (byte)(screen[ofs] | (1 << dy));
+								}
+
+						if (allWhite(screen.ToArray()))
+							continue;
+						if (allBlack(screen.ToArray()))
+							continue;
+
+						var mapLevel = new MapLevel { column = column, row = row, offset = levels.Count() };
+						levels.Add(mapLevel);
+
+						file.Write(screen, 0, screen.Length);
+						total_size += screen.Length;
+					}
+				}
+			}
+
+			Console.WriteLine(String.Format("// total levels = {0}", levels.Count()));
+			Console.WriteLine("const unsigned level_offsets[] PROGMEM = {");
+			Console.Write("\t");
+			for (int i=0; i<levels.Count; i++)
+			{
+				var level = levels[i];
+				Console.Write(String.Format("0x{0:x4}", (int)level.row * 256 + level.column) + ", ");
+				if (i % 16 == 15)
+				{
+					Console.WriteLine();
+					Console.Write("\t");
+				}
+			}
+			Console.WriteLine();
+			Console.WriteLine("};");
+		}
+
 	}
 }
