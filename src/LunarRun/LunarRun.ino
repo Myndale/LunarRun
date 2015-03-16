@@ -1,8 +1,11 @@
-hat #include <SPI.h>
+#include <SPI.h>
 #include <Gamebuino.h>
 #include <petit_fatfs.h>
 #include "vector2.h"
 Gamebuino gb;
+
+#define NUM_LEVELS 111
+extern const unsigned level_offsets[NUM_LEVELS] PROGMEM;
 
 enum ship_mode
 {
@@ -40,19 +43,16 @@ ship_mode ship_mode;
 ship_state ship_state;
 double ship_angle = 0;
 float fuel = 200;
+boolean render_down_flame = false, render_left_flame = false, render_right_flame = false;       
 boolean grayscale_frame = false;
 boolean thrust_released = false;
+unsigned current_screen;
 
-#define MENULENGTH 2
 const char strContinue[] PROGMEM = "Continue";
 const char strTutorial[] PROGMEM = "Tutorial";
-const char strLevel1[] PROGMEM = "Level 1";
-const char strLevel2[] PROGMEM = "Level 2";
-const char strLevel4[] PROGMEM = "Level 4";
-const char* const menu[] PROGMEM = {strContinue, strTutorial, strLevel1, strLevel2, strLevel4};
+const char* const menu[] PROGMEM = {strContinue, strTutorial};
 #define MENULENGTH (sizeof(menu) / sizeof(const char *))
-
-
+  
 void setup(){
   Serial.begin(9600);
   Serial.println("Starting...");
@@ -86,7 +86,6 @@ void loop(){
 void update_game() {
   if(gb.update()) {
     /*
-    boolean render_down_flame = false, render_left_flame = false, render_right_flame = false;       
     grayscale_frame = !grayscale_frame;
 
     if (gb.buttons.pressed(BTN_C))
@@ -95,16 +94,24 @@ void update_game() {
       return;
     }
 
-    update_ship(render_down_flame, render_left_flame, render_right_flame);
     */
-    draw_landscape(); // landscape needs to be drawn first in order for collision detection to work
-    /*
+    draw_ship(render_down_flame, render_left_flame, render_right_flame, grayscale_frame);
+    unsigned last_screen = current_screen;
+    update_ship(render_down_flame, render_left_flame, render_right_flame);
+    unsigned current_screen_x = (unsigned)ship_pos.x / LCDWIDTH;
+    unsigned current_screen_y = (unsigned)ship_pos.y / LCDHEIGHT;
+    current_screen = (current_screen_y << 8) + current_screen_x;
+    if (current_screen != last_screen)
+    {
+      // ship has moved to a different screen    
+      init_landscape(current_screen);
+    }
+    //draw_landscape(); // landscape needs to be drawn first in order for collision detection to work
     do_collision_detection();
     draw_ship(render_down_flame, render_left_flame, render_right_flame, grayscale_frame);
     //draw_fuel();
     last_ship_pos = ship_pos;
     last_ship_vel = ship_vel;
-    */
   }
 }
 
@@ -146,20 +153,25 @@ void main_menu() {
   init_game();
 }
 
-void init_game(/*level * next_level*/) {
+void init_game() {
   Serial.println("init_game");
   gb.display.persistence = true;
-  init_landscape(/*next_level*/);
-  /*
-  float x = pgm_read_float(&current_level->start_pos_x);
-  float y = pgm_read_float(&current_level->start_pos_y);
+  
+  current_screen = 0x0500;
+  
+  // initialize the ship position
+  float x = (current_screen & 255) * 84 + 10;
+  float y = (current_screen >> 8) * 48 + 24;
   ship_pos = last_ship_pos = vector2(x, y);
   ship_vel = last_ship_vel = vector2(0, 0);
   ship_angle = 0.0f;
   ship_mode = Landing;
   ship_state = Flying;
   thrust_released = false;
-  */
+  
+  // start with the ship already drawn
+  init_landscape(current_screen);
+  draw_ship(render_down_flame, render_left_flame, render_right_flame, grayscale_frame);
 }
 
   

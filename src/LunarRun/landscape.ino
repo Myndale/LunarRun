@@ -1,51 +1,22 @@
 #include <petit_fatfs.h>
 
-void init_landscape(/*level * new_level*/) {
-  loadScreen(40);
-}
+const unsigned level_offsets[NUM_LEVELS] PROGMEM = {
+        0x0108, 0x011c, 0x0126, 0x012f, 0x0227, 0x0228, 0x0307, 0x0308, 0x030e, 0x0311, 0x0319, 0x031a, 0x031b, 0x031c, 0x031d, 0x0326,
+        0x0407, 0x0408, 0x0409, 0x040a, 0x040b, 0x040c, 0x0410, 0x0411, 0x0412, 0x0419, 0x041a, 0x041b, 0x041c, 0x041d, 0x041e, 0x041f,
+        0x0420, 0x0421, 0x0426, 0x0500, 0x0501, 0x0502, 0x0503, 0x0504, 0x0505, 0x0506, 0x0507, 0x0508, 0x0509, 0x050a, 0x050b, 0x050c,
+        0x050d, 0x050e, 0x050f, 0x0510, 0x0511, 0x0512, 0x0513, 0x0514, 0x0515, 0x0516, 0x0517, 0x0518, 0x0519, 0x051a, 0x051c, 0x051d,
+        0x051e, 0x051f, 0x0520, 0x0521, 0x0522, 0x0523, 0x0524, 0x0525, 0x0526, 0x0527, 0x0528, 0x0529, 0x052a, 0x052b, 0x052c, 0x052d,
+        0x052e, 0x052f, 0x060b, 0x0611, 0x0612, 0x0619, 0x061a, 0x061d, 0x061e, 0x061f, 0x0620, 0x0621, 0x0622, 0x0623, 0x0624, 0x0625,
+        0x0626, 0x0627, 0x070a, 0x070b, 0x0712, 0x0717, 0x0718, 0x0719, 0x071a, 0x0720, 0x0723, 0x0724, 0x0725, 0x0726, 0x0727,
+};
 
-void draw_landscape() {
- 
-}
-
-void loadScreen(unsigned screen_num)
-{
-  int bytes_read;
-  digitalWrite(SS, LOW);
-  int err = PFFS.open_file("LUNARRUN.DAT");
-  if (err == 0)
-  {  
-    PFFS.lseek_file(screen_num*(LCDWIDTH*LCDHEIGHT/8));
-    uint8_t * buffer = gb.display.getBuffer();
-    buffer[0] = 0x55;
-    for (int row=0; row<LCDHEIGHT/8; row++, buffer+=LCDWIDTH)
-      PFFS.read_file((char *)buffer, LCDWIDTH, &bytes_read);
-  }
-  else
-    Serial.print("Error code "); Serial.print(err);
-  digitalWrite(SS, HIGH);
-}
-
-byte rx()
-{
-  SPDR = 0xFF;
-  loop_until_bit_is_set(SPSR, SPIF);
-  return SPDR;
-}
-
-void tx(byte d)
-{
-  SPDR = d;
-  loop_until_bit_is_set(SPSR, SPIF);
-}
-
-void spi_init()
-{
-  pinMode(10, OUTPUT);
-  pinMode(11, OUTPUT);
-  pinMode(12, INPUT);
-  pinMode(13, OUTPUT);
-  
-  SPCR = _BV(MSTR) | _BV(SPE);      // Master mode, SPI enable, clock speed MCU_XTAL/4
+void init_landscape(unsigned level_num) {
+  // could speed this up with a binary search, but it's not needed at this point
+  for (unsigned i=0; i<NUM_LEVELS; i++)
+    if (pgm_read_word(&level_offsets[i]) == level_num)
+    {
+      loadScreen(i);
+      break;
+    }
 }
 

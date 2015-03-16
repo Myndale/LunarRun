@@ -1,3 +1,4 @@
+/*
 const byte mask[] PROGMEM = {
   64, 64,
   0x00,0x02,0x00,0x10,0x00,0x80,0x00,0x00,0x00,0x03,0x00,0x10,0x01,0x80,0x00,0x00,0x30,0x03,0x80,0x38,0x03,0x80,0x18,0x00,0x3C,0x03,0xC0,0x38,0x07,0x80,0x78,0x00,
@@ -17,7 +18,7 @@ const byte mask[] PROGMEM = {
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x7D,0xF7,0xDF,0x00,0x00,0x00,0x00,0x00,0x28,0xA2,0x8A,0x00,0x00,0x00,0x00,0x00,
   0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 };
-
+*/
 
 const byte image1[] PROGMEM = {
   64, 64,
@@ -142,6 +143,8 @@ const byte pad_sprites[][4] PROGMEM = {
 
 void update_ship(boolean & render_down_flame, boolean & render_left_flame, boolean & render_right_flame)
 {
+  render_down_flame = render_left_flame = render_right_flame = false;
+  
   if (gb.buttons.pressed(BTN_B))
   {
     ship_mode = (ship_mode == Maneuver) ? Landing : Maneuver;
@@ -354,9 +357,11 @@ void draw_maneuver(boolean render_down_flame, boolean grayscale_frame) {
   int8_t dst_x = (int8_t)((int)ship_x % LCDWIDTH + src_x - capsule_x);
   int8_t dst_y = (int8_t)((int)ship_y % LCDHEIGHT + src_y - capsule_y);
 
+/*
   gb.display.setColor(WHITE);
   drawBitmap(dst_x, dst_y, dst_w, dst_h, src_x, src_y, mask);
-  gb.display.setColor(BLACK);
+  */
+  gb.display.setColor(INVERT);
   if (grayscale_frame)
     drawBitmap(dst_x, dst_y, dst_w, dst_h, src_x, src_y, image1);
   else
@@ -390,9 +395,11 @@ void draw_ship_data(int ship_x, int ship_y, const struct ship_sprite_data & data
   int8_t dst_x = ship_x % LCDWIDTH + src_x - capsule_x;
   int8_t dst_y = ship_y % LCDHEIGHT + src_y - capsule_y;
 
+  /*
   gb.display.setColor(WHITE);
   drawBitmap(dst_x, dst_y, dst_w, dst_h, src_x, src_y, mask);
-  gb.display.setColor(BLACK);
+  */
+  gb.display.setColor(INVERT);
   if (grayscale_frame)
     drawBitmap(dst_x, dst_y, dst_w, dst_h, src_x, src_y, image1);
   else
@@ -421,9 +428,11 @@ void draw_pad(byte dst_x, byte dst_y, byte pad_frame)
   }
   else
   {
-    gb.display.setColor(WHITE);
+    /*
+    gb.display.setColor(INVITE);
     drawBitmap(dst_x, dst_y, dst_w, dst_h, src_x, src_y, mask);
-    gb.display.setColor(BLACK);
+    */
+    gb.display.setColor(INVERT);
     if (grayscale_frame)
       drawBitmap(dst_x, dst_y, dst_w, dst_h, src_x, src_y, image1);
     else
