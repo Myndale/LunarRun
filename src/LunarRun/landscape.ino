@@ -16,7 +16,11 @@ void init_landscape(unsigned level_num) {
     if (pgm_read_word(&level_offsets[i]) == level_num)
     {
       loadScreen(i);
-      break;
+      return;
     }
+    
+    // no background graphics on this screen, so clear it
+    uint8_t * buffer = gb.display.getBuffer();
+    memset(buffer, 0, LCDWIDTH*LCDHEIGHT/8);
 }
 

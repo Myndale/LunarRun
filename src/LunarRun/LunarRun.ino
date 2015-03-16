@@ -86,8 +86,6 @@ void loop(){
 void update_game() {
   if(gb.update()) {
     /*
-    grayscale_frame = !grayscale_frame;
-
     if (gb.buttons.pressed(BTN_C))
     {
       main_menu();
@@ -98,6 +96,7 @@ void update_game() {
     draw_ship(render_down_flame, render_left_flame, render_right_flame, grayscale_frame);
     unsigned last_screen = current_screen;
     update_ship(render_down_flame, render_left_flame, render_right_flame);
+    grayscale_frame = !grayscale_frame;
     unsigned current_screen_x = (unsigned)ship_pos.x / LCDWIDTH;
     unsigned current_screen_y = (unsigned)ship_pos.y / LCDHEIGHT;
     current_screen = (current_screen_y << 8) + current_screen_x;

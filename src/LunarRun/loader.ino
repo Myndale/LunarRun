@@ -7,7 +7,6 @@ void loadScreen(unsigned screen_num)
   {  
     PFFS.lseek_file(screen_num*(LCDWIDTH*LCDHEIGHT/8));
     uint8_t * buffer = gb.display.getBuffer();
-    buffer[0] = 0x55;
     for (int row=0; row<LCDHEIGHT/8; row++, buffer+=LCDWIDTH)
       PFFS.read_file((char *)buffer, LCDWIDTH, &bytes_read);
   }
